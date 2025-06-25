@@ -1,0 +1,46 @@
+/**
+ * <p> Proyecto cj-spi-full-integration-adm.
+ * <p> Clase UsuarioFuncionJudicial 20/6/2025.
+ * <p> Copyright 2025 Consejo de la Judicatura.
+ * <p> Todos los derechos reservados.
+ */
+package ec.gob.funcionjudicial.dto;
+
+import ec.gob.funcionjudicial.enums.TipoUsuario;
+import java.io.Serializable;
+import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * -- AQUI AÑADIR LA DESCRIPCION DE LA CLASE --.
+ *
+ * <p>Historial de cambios:
+ *
+ * <ul>
+ *   <li>1.0.0 - Descripción del cambio inicial - Danny.Tapia - 20/6/2025
+ *       <!-- Añadir nuevas entradas de cambios aquí -->
+ * </ul>
+ *
+ * @author Danny.Tapia
+ * @version 1.0.0 $
+ * @since 20/6/2025
+ */
+@Setter
+@Getter
+public class UsuarioFuncionJudicial implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+  private String nombres;
+  private String usuarioPrincipal;
+  private String usuarioAdicional;
+  private TipoUsuario tipoUsuario;
+  private List<Permiso> permisos;
+  private List<Rol> roles;
+  private List<Opcion> opciones;
+  private Long idUsuario;
+  private Long idOrganizacion;
+  private Boolean primerIngreso;
+  private Boolean claveCaducada;
+
+}
