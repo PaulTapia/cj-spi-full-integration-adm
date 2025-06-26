@@ -13,11 +13,13 @@ import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.Setter;
 import org.keycloak.component.ComponentModel;
+import org.keycloak.credential.LegacyUserCredentialManager;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.adapter.AbstractUserAdapter;
+
 
 /**
  * -- AQUI AÑADIR LA DESCRIPCION DE LA CLASE --.
@@ -44,7 +46,8 @@ public class ConsejoJudicaturaAdapter extends AbstractUserAdapter {
   public ConsejoJudicaturaAdapter(KeycloakSession session, RealmModel realm, ComponentModel model, Usuario usuario) {
     super(session, realm, model);
     this.usuario = usuario;
-    this.keycloakId = StorageId.keycloakId(model, String.valueOf(usuario.getId()));
+    //this.keycloakId = StorageId.keycloakId(model, String.valueOf(usuario.getId()));
+    this.keycloakId = StorageId.keycloakId(model, usuario.getUsername());
   }
 
   @Override
@@ -116,7 +119,7 @@ public class ConsejoJudicaturaAdapter extends AbstractUserAdapter {
 
   @Override
   public SubjectCredentialManager credentialManager() {
-    return null;
+    return new LegacyUserCredentialManager(session, realm, this);
   }
 
   // Atributos personalizados

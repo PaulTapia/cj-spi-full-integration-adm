@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.2"
+  xmlns="http://xmlns.jcp.org/xml/ns/persistence"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
+
+  <persistence-unit name="adm" transaction-type="RESOURCE_LOCAL">
+    <!--jta-data-source>java:jboss/datasources/LegacyUserDS</jta-data-source-->
+
+    <class>ec.gob.funcionjudicial.model.Aplicativo</class>
+    <class>ec.gob.funcionjudicial.model.Catalogo</class>
+    <class>ec.gob.funcionjudicial.model.HistoricoAccesos</class>
+    <class>ec.gob.funcionjudicial.model.Organizacion</class>
+    <class>ec.gob.funcionjudicial.model.Persona</class>
+    <class>ec.gob.funcionjudicial.model.Recurso</class>
+    <class>ec.gob.funcionjudicial.model.Rol</class>
+    <class>ec.gob.funcionjudicial.model.TipoCatalogo</class>
+    <class>ec.gob.funcionjudicial.model.UbicacionGeografica</class>
+    <class>ec.gob.funcionjudicial.model.Usuario</class>
+    <class>ec.gob.funcionjudicial.model.UsuarioRol</class>
+
+    <properties>
+      <property name="hibernate.connection.datasource" value="adm" />
+      <property name="hibernate.dialect" value="org.hibernate.dialect.SQLServer2012Dialect"/>
+      <property name="hibernate.hbm2ddl.auto" value="validate"/>
+      <property name="hibernate.connection.provider_disables_autocommit" value="true"/>
+      <property name="hibernate.jdbc.batch_size" value="20"/>
+      <property name="hibernate.order_inserts" value="true"/>
+      <property name="javax.persistence.transactionType" value="RESOURCE_LOCAL" />
+      <property name="hibernate.show_sql" value="false" />
+    </properties>
+  </persistence-unit>
+</persistence>

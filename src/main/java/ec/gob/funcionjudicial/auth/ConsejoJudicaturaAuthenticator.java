@@ -11,16 +11,11 @@ import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.credential.CredentialInput;
-import org.keycloak.events.Details;
-import org.keycloak.events.Errors;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.*;
 
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import org.keycloak.models.credential.PasswordCredentialModel;
 
 /**
  * -- AQUI AÑADIR LA DESCRIPCION DE LA CLASE --.
@@ -77,7 +72,7 @@ public class ConsejoJudicaturaAuthenticator implements Authenticator {
       // Buscar específicamente en nuestro SPI
       ConsejoJudicaturaStorageProvider provider = session.getProvider(
           ConsejoJudicaturaStorageProvider.class,
-          "consejo-judicatura-user-storage"
+          "cj-storage-adm"
       );
 
       if (provider == null) {

@@ -6,9 +6,6 @@
  */
 package ec.gob.funcionjudicial.user_storage;
 
-import javax.inject.Inject;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceUnit;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.storage.UserStorageProviderFactory;
@@ -33,9 +30,6 @@ public class ConsejoJudicaturaStorageProviderFactory implements
   // ID único para nuestro proveedor.
   public static final String PROVIDER_ID = "cj-storage-adm";
 
-  @Inject
-  ConsejoJudicaturaStorageProvider storageProvider;
-
   @Override
   public String getId() {
     return PROVIDER_ID;
@@ -48,9 +42,10 @@ public class ConsejoJudicaturaStorageProviderFactory implements
 
   @Override
   public ConsejoJudicaturaStorageProvider create(KeycloakSession session, ComponentModel model) {
-    storageProvider.setSession(session);
-    storageProvider.setModel(model);
-    return storageProvider;
+    ConsejoJudicaturaStorageProvider provider = new ConsejoJudicaturaStorageProvider();
+    provider.setSession(session);
+    provider.setModel(model);
+    return provider;
   }
 
 }
