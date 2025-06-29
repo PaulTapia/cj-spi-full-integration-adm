@@ -85,6 +85,17 @@ public class ConsejoJudicaturaAuthenticator implements Authenticator {
     } else {
       // Buscar en LDAP/usuarios locales (excluir nuestro SPI)
       user = session.users().getUserByUsername(realm, username);
+      // Intento 2: Si no se encuentra en LDAP, buscar en SPI
+      if (user == null) {
+        ConsejoJudicaturaStorageProvider provider = session.getProvider(
+            ConsejoJudicaturaStorageProvider.class,
+            "cj-storage-adm"
+        );
+
+        if (provider != null) {
+          user = provider.getUserByUsername(username, realm);
+        }
+      }
     }
 
     if (user == null) {

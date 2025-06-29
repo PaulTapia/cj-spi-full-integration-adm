@@ -9,16 +9,19 @@ package ec.gob.funcionjudicial.user_storage;
 import ec.gob.funcionjudicial.model.HistoricoAccesos;
 import ec.gob.funcionjudicial.model.Usuario;
 import ec.gob.funcionjudicial.utils.MD5Util;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.persistence.EntityTransaction;
+import javax.persistence.TypedQuery;
 import lombok.Getter;
 import lombok.Setter;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
+import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialInputValidator;
 import org.keycloak.credential.CredentialModel;
@@ -28,9 +31,9 @@ import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
 
-import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
+import org.keycloak.storage.user.UserQueryProvider;
 
 /**
  * -- AQUI AÑADIR LA DESCRIPCION DE LA CLASE --.
@@ -49,7 +52,8 @@ import javax.transaction.Transactional;
 public class ConsejoJudicaturaStorageProvider implements
     UserStorageProvider,
     UserLookupProvider,
-    CredentialInputValidator {
+    CredentialInputValidator,
+    UserQueryProvider {
 
   private static final Logger logger = Logger.getLogger(ConsejoJudicaturaStorageProvider.class);
 
@@ -59,13 +63,18 @@ public class ConsejoJudicaturaStorageProvider implements
   @Setter
   @Getter
   private ComponentModel model;
-  @Inject
-  EntityManager em;
 
   private final Map<String, UserModel> userCache = new ConcurrentHashMap<>();
 
+  /*private EntityManager getEntityManager() {
+    return EntityManagerProducer.createEntityManager();
+  }*/
 
-  private Connection getConnection() {
+  private EntityManager getEntityManager() {
+    return session.getProvider(JpaConnectionProvider.class, "adm").getEntityManager();
+  }
+
+  /*private Connection getConnection() {
     try {
       String url = "jdbc:sqlserver://10.1.27.24:1438;databaseName=PORTAL_APLICATIVOS_CJ;instanceName=DESA02;encrypt=false;trustServerCertificate=false;loginTimeout=30";
       return DriverManager.getConnection(url, "USR_ADM_DES_ALL", "uadacjt2012");
@@ -73,7 +82,9 @@ public class ConsejoJudicaturaStorageProvider implements
       logger.error("Error creating connection", e);
       return null;
     }
-  }
+  }*/
+
+
 
 
   @Override
@@ -87,7 +98,6 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   @Override
-  @Transactional
   public boolean isValid(RealmModel realmModel, UserModel userModel,
       CredentialInput credentialInput) {
     if (!supportsCredentialType(credentialInput.getType()) || !(credentialInput instanceof UserCredentialModel)) {
@@ -98,46 +108,25 @@ public class ConsejoJudicaturaStorageProvider implements
     String username = userModel.getUsername();
     String acronimo = getOrganizacionFromContext();
 
-    try (Connection conn = getConnection()) {
-      if (conn == null) return false;
-
+    try {
       Usuario usuario = null;
 
       if (acronimo != null && !acronimo.isEmpty()) {
-        // Validar con organización específica
-        String sql = "SELECT DISTINCT u.id, u.username, u.password, u.estado " +
-            "FROM ADM.Usuario u " +
-            "JOIN ADM.UsuarioRol ur ON ur.idUsuario = u.id " +
-            "JOIN ADM.Organizacion o ON o.id = ur.idOrganizacion " +
-            "WHERE u.username = ? AND o.acronimo = ? " +
-            "AND u.estado = 'ACT' AND ur.estado = 'ACT'";
-
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, username);
-        stmt.setString(2, acronimo);
-
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next()) {
-          usuario = new Usuario();
-          usuario.setId(rs.getLong("id"));
-          usuario.setUsername(rs.getString("username"));
-          usuario.setPassword(rs.getString("password"));
-          usuario.setEstado(rs.getString("estado"));
-        }
+        TypedQuery<Usuario> query = getEntityManager().createQuery(
+            "SELECT DISTINCT u FROM Usuario u "
+                + "JOIN u.usuarioRoles ur "
+                + "JOIN ur.organizacion o "
+                + "WHERE u.username = :username AND o.acronimo = :acronimo "
+                + "AND u.estado = 'ACT' AND u.tipo = 'EXT' AND ur.estado = 'ACT'", Usuario.class);
+        query.setParameter("username", username);
+        query.setParameter("acronimo", acronimo);
+        usuario = query.getResultStream().findFirst().orElse(null);
       } else {
-        // Fallback: validar sin organización
-        String sql = "SELECT id, username, password, estado FROM ADM.Usuario WHERE username = ? AND estado = 'ACT'";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, username);
-
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next()) {
-          usuario = new Usuario();
-          usuario.setId(rs.getLong("id"));
-          usuario.setUsername(rs.getString("username"));
-          usuario.setPassword(rs.getString("password"));
-          usuario.setEstado(rs.getString("estado"));
-        }
+        TypedQuery<Usuario> query = getEntityManager().createQuery(
+            "SELECT u FROM Usuario u WHERE u.username = :username AND u.estado = 'ACT' AND u.tipo = 'EXT'",
+            Usuario.class);
+        query.setParameter("username", username);
+        usuario = query.getResultStream().findFirst().orElse(null);
       }
 
       if (usuario != null) {
@@ -156,14 +145,15 @@ public class ConsejoJudicaturaStorageProvider implements
     return false;
   }
 
+  /**
+   * Obtiene la organización del contexto de autenticación.
+   */
   private String getOrganizacionFromContext() {
     try {
-
-        AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
-        if (authSession != null) {
-          return authSession.getUserSessionNotes().get("organizacion");
-        }
-
+      AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
+      if (authSession != null) {
+        return authSession.getUserSessionNotes().get("organizacion");
+      }
     } catch (Exception e) {
       // Log error
     }
@@ -171,31 +161,51 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
 
-  @Transactional
-  public void registrarAcceso(Usuario usuario, boolean exitoso, String acronimo) {
-    try (Connection conn = getConnection()) {
-      if (conn == null) return;
+  private void registrarAcceso(Usuario usuario, boolean exitoso, String acronimo) {
+    EntityTransaction tx = null;
+    try {
+      tx = getEntityManager().getTransaction();
+      tx.begin();
 
-      String sql = "INSERT INTO ADM.HistoricoAccesos (idUsuario, estado, fechaInicio, fechaFin, usuarioRegistra, usuarioActualiza, username, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      stmt.setLong(1, usuario.getId());
-      stmt.setString(2, exitoso ? "OK" : "NO");
-      java.sql.Timestamp now = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
-      stmt.setTimestamp(3, now);
-      stmt.setTimestamp(4, now);
-      stmt.setString(5, "KEYCLOAK");
-      stmt.setString(6, "KEYCLOAK");
-      stmt.setString(7, usuario.getUsername()); // varchar(50)
-      stmt.setString(8, getClientIP()); // varchar(40)
+      HistoricoAccesos acceso = new HistoricoAccesos();
+      acceso.setUsuario(usuario);
+      acceso.setEstado(exitoso ? "OK" : "NO");
+      acceso.setFechaInicio(LocalDateTime.now());
+      acceso.setFechaFin(LocalDateTime.now());
+      acceso.setUsuarioRegistra(usuario.getUsername());
+      acceso.setUsuarioActualiza(usuario.getUsername());
+      acceso.setUsername(usuario.getUsername());
+      acceso.setIp(getClientIP());
 
-      stmt.executeUpdate();
+      getEntityManager().persist(acceso);
+      tx.commit();
     } catch (Exception e) {
+      if (tx != null && tx.isActive()) {
+        tx.rollback();
+      }
       logger.error("Error registrando acceso", e);
     }
   }
 
   private String getClientIP() {
     try {
+      // Headers comunes de F5
+      String[] headers = {
+          "X-Forwarded-For",
+          "X-Real-IP",
+          "X-Client-IP",
+          "X-Cluster-Client-IP",
+          "True-Client-IP"
+      };
+
+      for (String header : headers) {
+        String ip = session.getContext().getRequestHeaders().getHeaderString(header);
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+          logger.info("IP obtenida de header " + header + ": " + ip);
+          return ip.split(",")[0].trim();
+        }
+      }
+
       return session.getContext().getConnection().getRemoteAddr();
     } catch (Exception e) {
       return "unknown";
@@ -204,11 +214,9 @@ public class ConsejoJudicaturaStorageProvider implements
 
   @Override
   public void close() {
-
   }
 
   @Override
-  @Transactional
   public UserModel getUserById(String s, RealmModel realmModel) {
     logger.info("getUserById called with id: " + s);
 
@@ -227,25 +235,15 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   @Override
-  @Transactional
   public UserModel getUserByUsername(String s, RealmModel realmModel) {
-    // Para compatibilidad con login estándar, buscar sin organización
-    try (Connection conn = getConnection()) {
-      if (conn == null) return null;
+    try {
+      TypedQuery<Usuario> query = getEntityManager().createQuery(
+          "SELECT u FROM Usuario u WHERE u.username = :username AND u.estado = 'ACT' AND u.tipo = 'EXT'",
+          Usuario.class);
+      query.setParameter("username", s);
+      Usuario usuario = query.getResultStream().findFirst().orElse(null);
 
-      String sql = "SELECT id, username, password, estado FROM ADM.Usuario WHERE username = ? AND estado = 'ACT'";
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      stmt.setString(1, s);
-
-      ResultSet rs = stmt.executeQuery();
-      if (rs.next()) {
-        // Crear objeto Usuario manualmente desde ResultSet
-        Usuario usuario = new Usuario();
-        usuario.setId(rs.getLong("id"));
-        usuario.setUsername(rs.getString("username"));
-        usuario.setPassword(rs.getString("password"));
-        usuario.setEstado(rs.getString("estado"));
-
+      if (usuario != null) {
         return new ConsejoJudicaturaAdapter(session, realmModel, model, usuario);
       }
     } catch (Exception e) {
@@ -257,65 +255,231 @@ public class ConsejoJudicaturaStorageProvider implements
   // Método específico para validar usuario con organización
   @Transactional
   public UserModel getUserByUsernameAndOrganization(RealmModel realm, String username, String acronimo) {
-    try (Connection conn = getConnection()) {
-      if (conn == null) return null;
+    logger.debugf("getUserByUsernameAndOrganization called with username: %s, organization: %s",
+        username, acronimo);
 
-      String sql = "SELECT DISTINCT u.id, u.username, u.password, u.estado " +
-          "FROM ADM.Usuario u " +
-          "JOIN ADM.UsuarioRol ur ON ur.idUsuario = u.id " +
-          "JOIN ADM.Organizacion o ON o.id = ur.idOrganizacion " +
-          "WHERE u.username = ? AND o.acronimo = ? " +
-          "AND u.estado = 'ACT' AND ur.estado = 'ACT'";
+    EntityManager em = getEntityManager();
+    try {
+      TypedQuery<Usuario> query = em.createQuery(
+          "SELECT DISTINCT u FROM Usuario u " +
+              "JOIN u.usuarioRoles ur " +
+              "JOIN ur.organizacion o " +
+              "WHERE u.username = :username AND o.acronimo = :acronimo " +
+              "AND u.estado = 'ACT' AND u.tipo = 'EXT' AND ur.estado = 'ACT'", Usuario.class);
 
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      stmt.setString(1, username);
-      stmt.setString(2, acronimo);
+      query.setParameter("username", username);
+      query.setParameter("acronimo", acronimo);
 
-      ResultSet rs = stmt.executeQuery();
-      if (rs.next()) {
-        Usuario usuario = new Usuario();
-        usuario.setId(rs.getLong("id"));
-        usuario.setUsername(rs.getString("username"));
-        usuario.setPassword(rs.getString("password"));
-        usuario.setEstado(rs.getString("estado"));
+      Usuario usuario = query.getResultStream().findFirst().orElse(null);
 
+      if (usuario != null) {
+        logger.debugf("Usuario '%s' encontrado en organización '%s'", username, acronimo);
         ConsejoJudicaturaAdapter adapter = new ConsejoJudicaturaAdapter(session, realm, model, usuario);
         adapter.setOrganizacion(acronimo);
         return adapter;
+      } else {
+        logger.debugf("Usuario '%s' no encontrado en organización '%s'", username, acronimo);
       }
     } catch (Exception e) {
-      logger.error("Error querying user by organization", e);
+      logger.errorv(e, "Error al buscar usuario {0} en organización {1}", username, acronimo);
+    } finally {
+      // No cerrar aquí si lo vas a usar en otros métodos durante la misma sesión
+      // Se cerrará en el método close() del provider
+      if(em != null && em.isOpen()) {
+        em.close();
+      }
     }
+
     return null;
   }
 
   @Override
-  public UserModel getUserByEmail(String email, RealmModel realmModel) {
-    try (Connection conn = getConnection()) {
-      if (conn == null) return null;
+  public UserModel getUserByEmail(String email, RealmModel realm) {
+    logger.debugf("getUserByEmail called with email: %s", email);
 
-      String sql = "SELECT u.id, u.username, u.password, u.estado " +
-          "FROM ADM.Usuario u " +
-          "JOIN ADM.Persona p ON p.id = u.idPersona " +
-          "WHERE p.email = ? AND u.estado = 'ACT'";
+    EntityManager em = getEntityManager();
+    try {
+      TypedQuery<Usuario> query = em.createQuery(
+          "SELECT u FROM Usuario u " +
+              "JOIN u.persona p " +
+              "WHERE p.email = :email AND u.estado = 'ACT' AND u.tipo = 'EXT'", Usuario.class);
 
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      stmt.setString(1, email);
+      query.setParameter("email", email);
+      Usuario usuario = query.getResultStream().findFirst().orElse(null);
 
-      ResultSet rs = stmt.executeQuery();
-      if (rs.next()) {
-        Usuario usuario = new Usuario();
-        usuario.setId(rs.getLong("id"));
-        usuario.setUsername(rs.getString("username"));
-        usuario.setPassword(rs.getString("password"));
-        usuario.setEstado(rs.getString("estado"));
-
-        return new ConsejoJudicaturaAdapter(session, realmModel, model, usuario);
+      if (usuario != null) {
+        logger.debugf("Usuario con email '%s' encontrado", email);
+        return new ConsejoJudicaturaAdapter(session, realm, model, usuario);
+      } else {
+        logger.debugf("Usuario con email '%s' no encontrado", email);
       }
     } catch (Exception e) {
-      logger.error("Error querying user by email", e);
+      logger.errorv(e, "Error al buscar usuario por email: {0}", email);
+    } finally {
+      // No cerrar aquí
+      if(em != null && em.isOpen()) {
+        em.close();
+      }
     }
+
     return null;
+  }
+
+  // Implementar métodos de búsqueda
+  @Override
+  public Stream<UserModel> searchForUserStream(RealmModel realm, String search, Integer firstResult, Integer maxResults) {
+    try {
+      TypedQuery<Usuario> query = getEntityManager().createQuery(
+          "SELECT u FROM Usuario u WHERE " +
+              "(u.username LIKE :search OR " +
+              "u.persona.nombres LIKE :search OR " +
+              "u.persona.apellidos LIKE :search) " +
+              "AND u.estado = 'ACT' AND u.tipo = 'EXT'", Usuario.class);
+
+      query.setParameter("search", "%" + search + "%");
+      if (firstResult != null) query.setFirstResult(firstResult);
+      if (maxResults != null) query.setMaxResults(maxResults);
+
+      return query.getResultStream()
+          .map(usuario -> new ConsejoJudicaturaAdapter(session, realm, model, usuario));
+    } catch (Exception e) {
+      logger.error("Error searching users", e);
+      return Stream.empty();
+    }
+  }
+
+  @Override
+  public List<UserModel> searchForUser(Map<String, String> params, RealmModel realmModel) {
+    return searchForUser(params, realmModel, 0, Integer.MAX_VALUE);
+  }
+
+  @Override
+  public List<UserModel> searchForUser(Map<String, String> params, RealmModel realmModel, int firstResult, int maxResults) {
+    try {
+      StringBuilder jpql = new StringBuilder("SELECT u FROM Usuario u WHERE u.estado = 'ACT' AND u.tipo = 'EXT'");
+
+      if (params.containsKey("username")) {
+        jpql.append(" AND u.username LIKE :username");
+      }
+      if (params.containsKey("email")) {
+        jpql.append(" AND u.persona.email LIKE :email");
+      }
+      if (params.containsKey("firstName")) {
+        jpql.append(" AND u.persona.nombres LIKE :firstName");
+      }
+      if (params.containsKey("lastName")) {
+        jpql.append(" AND u.persona.apellidos LIKE :lastName");
+      }
+
+      jpql.append(" ORDER BY u.username");
+
+      TypedQuery<Usuario> query = getEntityManager().createQuery(jpql.toString(), Usuario.class);
+
+      params.forEach((key, value) -> {
+        if (List.of("username", "email", "firstName", "lastName").contains(key)) {
+          query.setParameter(key, "%" + value + "%");
+        }
+      });
+
+      query.setFirstResult(firstResult);
+      query.setMaxResults(maxResults);
+
+      return query.getResultStream()
+          .map(usuario -> new ConsejoJudicaturaAdapter(session, realmModel, model, usuario))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error searching users with params", e);
+      return List.of();
+    }
+  }
+
+  @Override
+  public List<UserModel> getGroupMembers(RealmModel realmModel, GroupModel groupModel) {
+    return List.of();
+  }
+
+  @Override
+  public List<UserModel> getGroupMembers(RealmModel realmModel, GroupModel groupModel, int i,
+      int i1) {
+    return List.of();
+  }
+
+  @Override
+  public Stream<UserModel> getGroupMembersStream(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+    return Stream.empty();
+  }
+
+  @Override
+  public List<UserModel> searchForUserByUserAttribute(String s, String s1, RealmModel realmModel) {
+    return List.of();
+  }
+
+  @Override
+  public Stream<UserModel> searchForUserByUserAttributeStream(RealmModel realm, String attrName, String attrValue) {
+    return Stream.empty();
+  }
+
+  @Override
+  public int getUsersCount(RealmModel realm) {
+    try {
+      TypedQuery<Long> query = getEntityManager().createQuery(
+          "SELECT COUNT(u) FROM Usuario u WHERE u.estado = 'ACT' AND u.tipo = 'EXT'", Long.class);
+      return query.getSingleResult().intValue();
+    } catch (Exception e) {
+      logger.error("Error counting users", e);
+      return 0;
+    }
+  }
+
+
+  @Override
+  public List<UserModel> getUsers(RealmModel realmModel) {
+    return getUsers(realmModel, 0, Integer.MAX_VALUE);
+  }
+
+  @Override
+  public List<UserModel> getUsers(RealmModel realmModel, int firstResult, int maxResults) {
+    try {
+      TypedQuery<Usuario> query = getEntityManager().createQuery(
+          "SELECT u FROM Usuario u WHERE u.estado = 'ACT' ORDER BY u.username", Usuario.class);
+      query.setFirstResult(firstResult);
+      query.setMaxResults(maxResults);
+
+      return query.getResultStream()
+          .map(usuario -> new ConsejoJudicaturaAdapter(session, realmModel, model, usuario))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error getting users", e);
+      return List.of();
+    }
+  }
+
+  @Override
+  public List<UserModel> searchForUser(String search, RealmModel realmModel) {
+    return searchForUser(search, realmModel, 0, Integer.MAX_VALUE);
+  }
+
+  @Override
+  public List<UserModel> searchForUser(String search, RealmModel realmModel, int firstResult, int maxResults) {
+    try {
+      TypedQuery<Usuario> query = getEntityManager().createQuery(
+          "SELECT u FROM Usuario u WHERE " +
+              "(u.username LIKE :search OR " +
+              "u.persona.nombres LIKE :search OR " +
+              "u.persona.apellidos LIKE :search) " +
+              "AND u.estado = 'ACT' AND u.tipo = 'EXT' ORDER BY u.username", Usuario.class);
+
+      query.setParameter("search", "%" + search + "%");
+      query.setFirstResult(firstResult);
+      query.setMaxResults(maxResults);
+
+      return query.getResultStream()
+          .map(usuario -> new ConsejoJudicaturaAdapter(session, realmModel, model, usuario))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error searching users", e);
+      return List.of();
+    }
   }
 
 }

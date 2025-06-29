@@ -5,32 +5,30 @@
             <div class="banner">
                 <div class="banner-content">
                     <center>
-                        <img src="${url.resourcesPath}/img/logo-judicatura.png" 
-                            alt="Consejo de la Judicatura" 
-                            class="logo-image">
+                        <img src="${url.resourcesPath}/img/logo-judicatura.png"
+                             alt="${msg("loginAccountTitle")}"
+                             class="logo-image">
                     </center>
-                    <p>Sistema integrado de gestión judicial para una justicia moderna, transparente y accesible para todos los ciudadanos.</p>
+                    <p>${msg("login.description")}</p>
                 </div>
             </div>
-            
+
             <div class="login-section">
                 <div class="logo">
                     <div class="logo-icon">
                         <i class="fas fa-balance-scale"></i>
                     </div>
                     <div>
-                        <div class="logo-text">Consejo de la Judicatura</div>
-                        <div class="logo-subtext">Servicio Central de Autenticación</div>
+                        <div class="logo-text">${msg("loginAccountTitle")}</div>
+                        <div class="logo-subtext">${msg("login.subtitle")}</div>
                     </div>
                 </div>
-                
+
                 <div class="header">
-                    <h1>Inicio de Sesión</h1>
-                    <p>Ingrese sus credenciales para acceder al sistema</p>
+                    <h1>${msg("loginTitle")}</h1>
+                    <p>${msg("login.instructions")}</p>
                 </div>
-                
-                
-                
+
                 <form id="kc-form-login" action="${url.loginAction}" method="post">
 
                     <#if message?has_content>
@@ -38,64 +36,63 @@
                             ${message.summary}
                         </div>
                     </#if>
-                    
+
                     <div class="important-note">
-                        <strong>Importante</strong>
+                        <strong>${msg("login.important")}</strong>
                         <div class="checkbox-container">
                             <input type="checkbox" id="additional-data" name="additional-data" value="on">
-                            <label for="additional-data">Marque la casilla, si su perfil de usuario requiere un dato adicional para acceder a los servicios del Consejo de la Judicatura.</label>
+                            <label for="additional-data">${msg("login.additionalData")}</label>
                         </div>
                     </div>
 
-
                     <!-- Campo adicional que se mostrará solo cuando el checkbox esté marcado -->
-                    <div class="additional-field" id="judicatura-field" style="display: none;">
+                    <div class="additional-field" id="judicatura-field">
                         <div class="form-group">
-                            <label for="organization">Judicatura/Organización:</label>
+                            <label for="organization">${msg("login.organization")}:</label>
                             <div class="input-with-icon">
                                 <i class="fas fa-building"></i>
                                 <input type="text" id="organization" name="organization"
-                                       placeholder="Ingrese su organización" 
+                                       placeholder="${msg("login.organizationPlaceholder")}"
                                        autocomplete="organization">
                             </div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="username">Usuario:</label>
+                        <label for="username">${msg("username")}:</label>
                         <div class="input-with-icon">
                             <i class="fas fa-user"></i>
-                            <input type="text" id="username" name="username" 
-                                   value="${(login.username!'')}" 
-                                   placeholder="Ingrese su nombre de usuario" 
+                            <input type="text" id="username" name="username"
+                                   value="${(login.username!'')}"
+                                   placeholder="${msg("login.usernamePlaceholder")}"
                                    required autofocus>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="password">Contraseña:</label>
+                        <label for="password">${msg("password")}:</label>
                         <div class="input-with-icon">
                             <i class="fas fa-lock"></i>
-                            <input type="password" id="password" name="password" 
-                                   placeholder="Ingrese su contraseña" 
+                            <input type="password" id="password" name="password"
+                                   placeholder="${msg("login.passwordPlaceholder")}"
                                    required>
                         </div>
                     </div>
-                    
-                    <button type="submit" class="login-btn">INICIAR SESIÓN</button>
+
+                    <button type="submit" class="login-btn">${msg("doLogIn")}</button>
                 </form>
-                
+
                 <div class="forgot-password">
-                    <a href="#">¿Olvidó su contraseña?</a>
+                    <a href="#">${msg("doForgotPassword")}</a>
                 </div>
-                
+
                 <div class="keycloak-info">
                     <i class="fas fa-shield-alt"></i>
-                    <div>Autenticación segura proporcionada por Keycloak - Sistema de gestión de identidad y acceso</div>
+                    <div>${msg("login.keycloakInfo")}</div>
                 </div>
-                
+
                 <div class="footer">
-                    Construyendo un servicio de justicia para la paz social
+                    ${msg("login.footer")}
                 </div>
             </div>
         </div>

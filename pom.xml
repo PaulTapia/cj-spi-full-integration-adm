@@ -16,13 +16,11 @@
     <keycloak.version>19.0.3</keycloak.version>
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
-    <!-- La versión de JBoss Logging es manejada por las dependencias de Keycloak -->
     <hibernate.version>5.6.15.Final</hibernate.version>
     <jboss.logging.version>3.5.3.Final</jboss.logging.version>
     <mssql.driver.version>11.2.3.jre11</mssql.driver.version>
     <quarkus.platform.version>2.13.8.Final</quarkus.platform.version>
   </properties>
-
 
   <dependencyManagement>
     <dependencies>
@@ -37,12 +35,16 @@
   </dependencyManagement>
 
   <dependencies>
-
-
     <!-- Quarkus core -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-agroal</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -77,14 +79,14 @@
       <version>0.9.0</version>
     </dependency>
 
-    <!-- SQL Server Driver - Versión específica para Java 11 -->
+    <!-- SQL Server Driver -->
     <dependency>
       <groupId>com.microsoft.sqlserver</groupId>
       <artifactId>mssql-jdbc</artifactId>
       <version>${mssql.driver.version}</version>
     </dependency>
 
-    <!-- === DEPENDENCIAS DE KEYCLOAK (SIEMPRE PROVIDED) === -->
+    <!-- === DEPENDENCIAS DE KEYCLOAK === -->
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-core</artifactId>
@@ -101,12 +103,6 @@
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-model-jpa</artifactId>
       <version>${keycloak.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-      </exclusions>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -121,15 +117,19 @@
       <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-themes</artifactId>
+      <version>${keycloak.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
-
-    <!-- === DEPENDENCIAS OPCIONALES PARA COMPILACIÓN === -->
-    <!-- Lombok es útil para reducir código boilerplate en entidades -->
+    <!-- === DEPENDENCIAS OPCIONALES === -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.30</version>
-      <scope>provided</scope> <!-- Lombok también debe ser provided -->
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -145,12 +145,33 @@
       <version>${jboss.logging.version}</version>
       <scope>provided</scope>
     </dependency>
-
   </dependencies>
 
   <build>
+    <!-- CONFIGURACIÓN CORRECTA PARA TEMAS -->
+    <resources>
+      <!-- Recursos normales -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <!-- Excluir theme/ de la ubicación normal -->
+        <excludes>
+          <exclude>theme/**</exclude>
+        </excludes>
+      </resource>
+      <!-- Temas van directamente en la raíz del JAR -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <includes>
+          <include>theme/**</include>
+        </includes>
+        <targetPath>.</targetPath>
+        <filtering>false</filtering>
+      </resource>
+    </resources>
+
     <finalName>${project.artifactId}</finalName>
     <plugins>
+      <!-- Jandex para Quarkus -->
       <plugin>
         <groupId>org.jboss.jandex</groupId>
         <artifactId>jandex-maven-plugin</artifactId>
@@ -165,6 +186,7 @@
         </executions>
       </plugin>
 
+      <!-- Compilador -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -172,9 +194,17 @@
         <configuration>
           <source>${maven.compiler.source}</source>
           <target>${maven.compiler.target}</target>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>1.18.30</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
-      <!-- Plugin para asegurar que el JAR se construya correctamente -->
+
+      <!-- JAR plugin -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -182,7 +212,7 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <Dependencies>com.microsoft.sqlserver</Dependencies>
+              <Dependencies>com.microsoft.sqlserver,org.hibernate,javax.persistence.api,javax.transaction.api</Dependencies>
             </manifestEntries>
           </archive>
         </configuration>
