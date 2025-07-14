@@ -31,21 +31,21 @@ public class ConsejoJudicaturaIdAdmMapper extends AbstractOIDCProtocolMapper imp
     OIDCAccessTokenMapper,
     OIDCIDTokenMapper, UserInfoTokenMapper {
 
-  public static final String PROVIDER_ID = "cj-mapper-usuarios-ext-adm";
+  public static final String PROVIDER_ID = "cj-mapper-usuarios-adm";
 
   @Override
   public String getDisplayCategory() {
-    return "";
+    return "UsuarioFuncionJudicial internos y externo ADM";
   }
 
   @Override
   public String getDisplayType() {
-    return "";
+    return "Roles y Menus para el UsiarioFuncionJudicial internos y externo ADM";
   }
 
   @Override
   public String getHelpText() {
-    return "";
+    return "Añade roles y menus para el UsuarioFuncionJudicial internos y externo ADM del Consejo de la Judicatura";
   }
 
   @Override
@@ -57,4 +57,5 @@ public class ConsejoJudicaturaIdAdmMapper extends AbstractOIDCProtocolMapper imp
   public String getId() {
     return PROVIDER_ID;
   }
+
 }
