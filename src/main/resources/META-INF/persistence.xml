@@ -5,6 +5,7 @@
   xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
 
   <persistence-unit name="adm" transaction-type="JTA">
+
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
     <class>ec.gob.funcionjudicial.model.Aplicativo</class>
     <class>ec.gob.funcionjudicial.model.Catalogo</class>
@@ -18,10 +19,10 @@
     <class>ec.gob.funcionjudicial.model.Usuario</class>
     <class>ec.gob.funcionjudicial.model.UsuarioRol</class>
     <properties>
-      <property name="hibernate.dialect" value="org.hibernate.dialect.SQLServer2012Dialect"/>
+      <property name="hibernate.dialect" value="org.hibernate.dialect.SQLServer2016Dialect"/>
       <property name="hibernate.hbm2ddl.auto" value="validate"/>
-      <property name="hibernate.show_sql" value="true"/>
-      <property name="hibernate.format_sql" value="true"/>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.format_sql" value="false"/>
       <property name="hibernate.connection.datasource" value="adm"/>
     </properties>
   </persistence-unit>

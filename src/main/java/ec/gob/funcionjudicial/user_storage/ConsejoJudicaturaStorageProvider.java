@@ -152,7 +152,8 @@ public class ConsejoJudicaturaStorageProvider implements
     try {
       AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
       if (authSession != null) {
-        return authSession.getUserSessionNotes().get("organizacion");
+        //return authSession.getUserSessionNotes().get("organizacion");
+        return authSession.getAuthNote("organizacion");
       }
     } catch (Exception e) {
       // Log error

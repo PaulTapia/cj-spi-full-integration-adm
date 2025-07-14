@@ -7,12 +7,11 @@
 package ec.gob.funcionjudicial.auth;
 
 import ec.gob.funcionjudicial.user_storage.ConsejoJudicaturaStorageProvider;
+import javax.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.credential.CredentialInput;
-import org.keycloak.models.UserCredentialModel;
+import org.keycloak.authentication.authenticators.browser.UsernamePasswordForm;
 import org.keycloak.models.*;
 
 import javax.ws.rs.core.MultivaluedMap;
@@ -31,45 +30,82 @@ import javax.ws.rs.core.MultivaluedMap;
  * @version 1.0.0 $
  * @since 20/6/2025
  */
-public class ConsejoJudicaturaAuthenticator implements Authenticator {
+public class ConsejoJudicaturaAuthenticator extends UsernamePasswordForm implements Authenticator {
 
   private static final Logger logger = Logger.getLogger(ConsejoJudicaturaAuthenticator.class.getName());
 
   @Override
-  public void authenticate(AuthenticationFlowContext context) {
-    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+  protected Response challenge(AuthenticationFlowContext context, String error, String field) {
+    setupFormAttributes(context);
+    return super.challenge(context, error, field);
+  }
 
-    if (formData.containsKey("cancel")) {
-      context.cancelLogin();
-      return;
+  @Override
+  protected Response challenge(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
+    setupFormAttributes(context);
+    return super.challenge(context, formData);
+  }
+
+  @Override
+  protected boolean validateForm(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
+    // Validar username/password básico primero
+    boolean basicValidation = super.validateForm(context, formData);
+
+    if (!basicValidation) {
+      return false;
     }
 
-    String organization = formData.getFirst("organization");
-    String username = formData.getFirst("username");
-    String password = formData.getFirst("password");
+    // Validación adicional para organización
     String additionalData = formData.getFirst("additional-data");
-
+    String organization = formData.getFirst("organization");
     boolean requiresOrganization = "on".equals(additionalData);
 
-    if (username == null || username.trim().isEmpty() || password == null) {
-      context.challenge(context.form().createLoginUsernamePassword());
-      return;
-    }
+    return !requiresOrganization || (organization != null && !organization.trim().isEmpty());
+  }
 
-    if (requiresOrganization && (organization == null || organization.trim().isEmpty())) {
-      context.challenge(context.form().setError("Debe ingresar su organización").createLoginUsernamePassword());
-      return;
+  @Override
+  public boolean validateUser(AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
+    String username = inputData.getFirst("username");
+    String organization = inputData.getFirst("organization");
+    String additionalData = inputData.getFirst("additional-data");
+    boolean requiresOrganization = "on".equals(additionalData);
+
+    try {
+      UserModel user = findUser(context, username, organization, requiresOrganization);
+
+      if (user == null) {
+        logger.warn(String.format("Usuario '%s' no encontrado %s",
+            username, requiresOrganization ? "en organización " + organization : ""));
+        return false;
+      }
+
+      if (!user.isEnabled()) {
+        context.getEvent().user(user);
+        context.getEvent().error("user_disabled");
+        return false;
+      }
+
+      // Guardar organización en sesión
+      if (requiresOrganization && organization != null) {
+        context.getAuthenticationSession().setUserSessionNote("organizacion", organization);
+      }
+
+      context.setUser(user);
+      return true;
+
+    } catch (Exception e) {
+      logger.error("Error al buscar usuario: " + e.getMessage(), e);
+      return false;
     }
+  }
+
+  private UserModel findUser(AuthenticationFlowContext context, String username,
+      String organization, boolean requiresOrganization) {
 
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
-    UserModel user;
 
     if (requiresOrganization) {
-      // Guardar organización en contexto para el SPI
-      context.getAuthenticationSession().setUserSessionNote("organizacion", organization);
-
-      // Buscar específicamente en nuestro SPI
       ConsejoJudicaturaStorageProvider provider = session.getProvider(
           ConsejoJudicaturaStorageProvider.class,
           "cj-storage-adm"
@@ -77,15 +113,14 @@ public class ConsejoJudicaturaAuthenticator implements Authenticator {
 
       if (provider == null) {
         logger.error("ConsejoJudicatura User Storage Provider no encontrado");
-        context.challenge(context.form().setError("Error interno del sistema").createLoginUsernamePassword());
-        return;
+        return null;
       }
 
-      user = provider.getUserByUsernameAndOrganization(realm, username, organization);
+      return provider.getUserByUsernameAndOrganization(realm, username, organization);
     } else {
-      // Buscar en LDAP/usuarios locales (excluir nuestro SPI)
-      user = session.users().getUserByUsername(realm, username);
-      // Intento 2: Si no se encuentra en LDAP, buscar en SPI
+      // Buscar en LDAP/usuarios locales primero
+      UserModel user = session.users().getUserByUsername(realm, username);
+
       if (user == null) {
         ConsejoJudicaturaStorageProvider provider = session.getProvider(
             ConsejoJudicaturaStorageProvider.class,
@@ -96,37 +131,16 @@ public class ConsejoJudicaturaAuthenticator implements Authenticator {
           user = provider.getUserByUsername(username, realm);
         }
       }
+
+      return user;
     }
-
-    if (user == null) {
-      logger.warn(String.format("Usuario '%s' no encontrado %s",
-          username, requiresOrganization ? "en organización " + organization : ""));
-      context.failure(AuthenticationFlowError.INVALID_USER);
-      return;
-    }
-
-    if (!user.isEnabled()) {
-      context.failure(AuthenticationFlowError.USER_DISABLED);
-      return;
-    }
-
-    // Validar contraseña
-    CredentialInput passwordCredential = UserCredentialModel.password(password);
-    boolean passwordIsValid = session.userCredentialManager().isValid(realm, user, passwordCredential);
-
-    if (!passwordIsValid) {
-      context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
-      return;
-    }
-
-    // Éxito
-    context.setUser(user);
-    context.success();
   }
 
-  @Override
-  public void action(AuthenticationFlowContext context) {
-    authenticate(context);
+  private void setupFormAttributes(AuthenticationFlowContext context) {
+    // Configurar atributos para el template personalizado
+    context.form().setAttribute("showOrganizationField", true);
+    context.form().setAttribute("organizationLabel", "Organización");
+    context.form().setAttribute("additionalDataLabel", "Soy usuario del Consejo de la Judicatura");
   }
 
   @Override

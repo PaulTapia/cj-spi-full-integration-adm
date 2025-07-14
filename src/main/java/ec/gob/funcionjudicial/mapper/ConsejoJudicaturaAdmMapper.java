@@ -6,12 +6,20 @@
  */
 package ec.gob.funcionjudicial.mapper;
 
+import ec.gob.funcionjudicial.dto.UsuarioFuncionJudicial;
+import java.util.ArrayList;
 import java.util.List;
+import org.jboss.logging.Logger;
+import org.keycloak.models.ProtocolMapperModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.mappers.AbstractOIDCProtocolMapper;
 import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper;
+import org.keycloak.protocol.oidc.mappers.OIDCAttributeMapperHelper;
 import org.keycloak.protocol.oidc.mappers.OIDCIDTokenMapper;
 import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.representations.IDToken;
 
 /**
  * -- AQUI AÑADIR LA DESCRIPCION DE LA CLASE --.
@@ -27,11 +35,32 @@ import org.keycloak.provider.ProviderConfigProperty;
  * @version 1.0.0 $
  * @since 20/6/2025
  */
-public class ConsejoJudicaturaIdAdmMapper extends AbstractOIDCProtocolMapper implements
+public class ConsejoJudicaturaAdmMapper extends AbstractOIDCProtocolMapper implements
     OIDCAccessTokenMapper,
     OIDCIDTokenMapper, UserInfoTokenMapper {
 
   public static final String PROVIDER_ID = "cj-mapper-usuarios-adm";
+  private static final Logger logger = Logger.getLogger(ConsejoJudicaturaAdmMapper.class.getName());
+
+  private static final List<ProviderConfigProperty> propiedadesConfiguracion = new ArrayList<>();
+
+  static {
+    OIDCAttributeMapperHelper.addTokenClaimNameConfig(propiedadesConfiguracion);
+    OIDCAttributeMapperHelper.addIncludeInTokensConfig(propiedadesConfiguracion,
+        ConsejoJudicaturaAdmMapper.class);
+  }
+
+  @Override
+  protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession) {
+    // 1. Obtener la organización desde las notas de la sesión.
+    String organizacion = userSession.getNote("organizacion");
+    UserModel user = userSession.getUser();
+
+    logger.info("setClaim: organizacion: " + organizacion);
+    logger.info("setClaim: user: " + user);
+
+
+  }
 
   @Override
   public String getDisplayCategory() {

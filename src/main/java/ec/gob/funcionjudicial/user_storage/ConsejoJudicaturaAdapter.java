@@ -37,6 +37,7 @@ import org.keycloak.storage.adapter.AbstractUserAdapter;
  */
 public class ConsejoJudicaturaAdapter extends AbstractUserAdapter {
 
+  @Getter
   private final Usuario usuario;
   private final String keycloakId;
   @Setter

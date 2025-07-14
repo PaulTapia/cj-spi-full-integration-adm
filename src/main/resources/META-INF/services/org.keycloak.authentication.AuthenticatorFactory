@@ -1,1 +1,2 @@
 ec.gob.funcionjudicial.auth.ConsejoJudicaturaAuthenticatorFactory
+ec.gob.funcionjudicial.auth.ConsejoJudicaturaDirectGrantAuthenticatorFactory

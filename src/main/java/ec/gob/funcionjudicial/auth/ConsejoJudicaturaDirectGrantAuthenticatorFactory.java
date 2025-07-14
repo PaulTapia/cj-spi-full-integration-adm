@@ -1,6 +1,6 @@
 /**
  * <p> Proyecto cj-spi-full-integration-adm.
- * <p> Clase ConsejoJudicaturaAuthenticatorFactory 20/6/2025.
+ * <p> Clase ConsejoJudicaturaDirectGrantAuthenticatorFactory 14/7/2025.
  * <p> Copyright 2025 Consejo de la Judicatura.
  * <p> Todos los derechos reservados.
  */
@@ -22,18 +22,17 @@ import org.keycloak.provider.ProviderConfigProperty;
  * <p>Historial de cambios:
  *
  * <ul>
- *   <li>1.0.0 - Descripción del cambio inicial - Danny.Tapia - 20/6/2025
+ *   <li>1.0.0 - Descripción del cambio inicial - Danny.Tapia - 14/7/2025
  *       <!-- Añadir nuevas entradas de cambios aquí -->
  * </ul>
  *
  * @author Danny.Tapia
  * @version 1.0.0 $
- * @since 20/6/2025
+ * @since 14/7/2025
  */
-public class ConsejoJudicaturaAuthenticatorFactory implements AuthenticatorFactory {
+public class ConsejoJudicaturaDirectGrantAuthenticatorFactory implements AuthenticatorFactory {
 
-  public static final String PROVIDER_ID = "consejo-judicatura-authenticator";
-  private static final ConsejoJudicaturaAuthenticator SINGLETON = new ConsejoJudicaturaAuthenticator();
+  public static final String PROVIDER_ID = "consejo-judicatura-direct-grant";
 
   @Override
   public String getId() {
@@ -42,17 +41,17 @@ public class ConsejoJudicaturaAuthenticatorFactory implements AuthenticatorFacto
 
   @Override
   public String getDisplayType() {
-    return "Consejo Judicatura Form Authenticator";
+    return "Consejo Judicatura Direct Grant";
   }
 
   @Override
   public String getHelpText() {
-    return "Authenticator que maneja login con organización opcional para Consejo de la Judicatura.";
+    return "Direct grant authenticator con soporte de organización para Consejo de la Judicatura.";
   }
 
   @Override
   public Authenticator create(KeycloakSession session) {
-    return new ConsejoJudicaturaAuthenticator();
+    return new ConsejoJudicaturaDirectGrantAuthenticator();
   }
 
   @Override
@@ -69,7 +68,6 @@ public class ConsejoJudicaturaAuthenticatorFactory implements AuthenticatorFacto
   public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
     return new AuthenticationExecutionModel.Requirement[]{
         AuthenticationExecutionModel.Requirement.REQUIRED,
-        //AuthenticationExecutionModel.Requirement.ALTERNATIVE,
         AuthenticationExecutionModel.Requirement.DISABLED
     };
   }
@@ -85,18 +83,12 @@ public class ConsejoJudicaturaAuthenticatorFactory implements AuthenticatorFacto
   }
 
   @Override
-  public void init(Config.Scope config) {
-    // No initialization needed
-  }
+  public void init(Config.Scope config) {}
 
   @Override
-  public void postInit(KeycloakSessionFactory factory) {
-    // No post-initialization needed
-  }
+  public void postInit(KeycloakSessionFactory factory) {}
 
   @Override
-  public void close() {
-    // No cleanup needed
-  }
+  public void close() {}
 
 }
