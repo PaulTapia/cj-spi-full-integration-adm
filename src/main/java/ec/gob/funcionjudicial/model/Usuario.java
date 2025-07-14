@@ -19,6 +19,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -70,5 +71,8 @@ public class Usuario implements Serializable {
 
   @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
   private List<UsuarioRol> usuarioRoles;
+
+  @Transient
+  private String organizacion;
 
 }

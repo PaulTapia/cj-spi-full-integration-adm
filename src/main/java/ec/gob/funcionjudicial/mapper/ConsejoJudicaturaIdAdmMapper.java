@@ -1,6 +1,6 @@
 /**
  * <p> Proyecto cj-spi-full-integration-adm.
- * <p> Clase ConsejoJudicaturaIdAdmAdMapper 20/6/2025.
+ * <p> Clase ConsejoJudicaturaIdAdmBDMapper 20/6/2025.
  * <p> Copyright 2025 Consejo de la Judicatura.
  * <p> Todos los derechos reservados.
  */
@@ -27,11 +27,11 @@ import org.keycloak.provider.ProviderConfigProperty;
  * @version 1.0.0 $
  * @since 20/6/2025
  */
-public class ConsejoJudicaturaIdAdmAdMapper extends AbstractOIDCProtocolMapper implements
+public class ConsejoJudicaturaIdAdmMapper extends AbstractOIDCProtocolMapper implements
     OIDCAccessTokenMapper,
     OIDCIDTokenMapper, UserInfoTokenMapper {
 
-  public static final String PROVIDER_ID = "cj-mapper-usuarios-int-adm";
+  public static final String PROVIDER_ID = "cj-mapper-usuarios-ext-adm";
 
   @Override
   public String getDisplayCategory() {
