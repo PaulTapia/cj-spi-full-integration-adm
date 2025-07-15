@@ -7,6 +7,7 @@
 package ec.gob.funcionjudicial.model;
 
 import java.io.Serializable;
+import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -45,5 +46,6 @@ public class Aplicativo implements Serializable {
   private String nombre;
   private String alias;
   private String estado;
+
 
 }

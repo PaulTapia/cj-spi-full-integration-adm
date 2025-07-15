@@ -6,15 +6,20 @@
  */
 package ec.gob.funcionjudicial.model;
 
+import ec.gob.funcionjudicial.dto.UsuarioFuncionJudicial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.Column;
+import javax.persistence.DiscriminatorColumn;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Inheritance;
+import javax.persistence.InheritanceType;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -39,6 +44,8 @@ import lombok.Setter;
  */
 @Entity
 @Table(name = "Usuario", catalog = "PORTAL_APLICATIVOS_CJ", schema = "ADM")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "tipo")
 @Setter
 @Getter
 public class Usuario implements Serializable {
@@ -49,6 +56,7 @@ public class Usuario implements Serializable {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "tipo", insertable = false, updatable = false)
   private String tipo;
   private String username;
   private String password;
@@ -72,7 +80,16 @@ public class Usuario implements Serializable {
   @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
   private List<UsuarioRol> usuarioRoles;
 
-  @Transient
-  private String organizacion;
+  public UsuarioFuncionJudicial toUsuarioFuncionJudicial() {
+    UsuarioFuncionJudicial user = new UsuarioFuncionJudicial();
+    user.setUsuarioPrincipal(this.username);
+    if (this.persona != null) {
+      user.setNombres(this.persona.getNombres() + " " + this.persona.getApellidos());
+    }
+    user.setPermisos(new ArrayList<>());
+    user.setRoles(new ArrayList<>());
+    user.setOpciones(new ArrayList<>());
+    return user;
+  }
 
 }

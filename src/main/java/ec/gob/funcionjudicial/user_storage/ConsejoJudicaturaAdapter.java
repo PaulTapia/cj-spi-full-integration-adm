@@ -44,10 +44,10 @@ public class ConsejoJudicaturaAdapter extends AbstractUserAdapter {
   @Getter
   private String organizacion; // Campo adicional para organización
 
-  public ConsejoJudicaturaAdapter(KeycloakSession session, RealmModel realm, ComponentModel model, Usuario usuario) {
+  public ConsejoJudicaturaAdapter(KeycloakSession session, RealmModel realm, ComponentModel model,
+      Usuario usuario) {
     super(session, realm, model);
     this.usuario = usuario;
-    //this.keycloakId = StorageId.keycloakId(model, String.valueOf(usuario.getId()));
     this.keycloakId = StorageId.keycloakId(model, usuario.getUsername());
   }
 

@@ -7,17 +7,24 @@
   <persistence-unit name="adm" transaction-type="JTA">
 
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
-    <class>ec.gob.funcionjudicial.model.Aplicativo</class>
+
     <class>ec.gob.funcionjudicial.model.Catalogo</class>
     <class>ec.gob.funcionjudicial.model.HistoricoAccesos</class>
     <class>ec.gob.funcionjudicial.model.Organizacion</class>
     <class>ec.gob.funcionjudicial.model.Persona</class>
-    <class>ec.gob.funcionjudicial.model.Recurso</class>
     <class>ec.gob.funcionjudicial.model.Rol</class>
     <class>ec.gob.funcionjudicial.model.TipoCatalogo</class>
     <class>ec.gob.funcionjudicial.model.UbicacionGeografica</class>
-    <class>ec.gob.funcionjudicial.model.Usuario</class>
     <class>ec.gob.funcionjudicial.model.UsuarioRol</class>
+
+    <class>ec.gob.funcionjudicial.model.Recurso</class>
+    <class>ec.gob.funcionjudicial.model.Aplicacion</class>
+    <class>ec.gob.funcionjudicial.model.Modulo</class>
+
+    <class>ec.gob.funcionjudicial.model.Usuario</class>
+    <class>ec.gob.funcionjudicial.model.UsuarioExterno</class>
+
+    <class>ec.gob.funcionjudicial.model.Aplicativo</class>
     <properties>
       <property name="hibernate.dialect" value="org.hibernate.dialect.SQLServer2016Dialect"/>
       <property name="hibernate.hbm2ddl.auto" value="validate"/>

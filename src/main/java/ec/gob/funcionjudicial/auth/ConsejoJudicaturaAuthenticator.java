@@ -91,6 +91,7 @@ public class ConsejoJudicaturaAuthenticator extends UsernamePasswordForm impleme
       }
 
       context.setUser(user);
+      context.success();
       return true;
 
     } catch (Exception e) {

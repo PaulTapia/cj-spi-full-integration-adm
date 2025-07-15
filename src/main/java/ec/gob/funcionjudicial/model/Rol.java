@@ -67,4 +67,14 @@ public class Rol implements Serializable {
   )
   private Set<Recurso> recursos = new HashSet<>();
 
+  public ec.gob.funcionjudicial.dto.Rol toIRol() {
+    ec.gob.funcionjudicial.dto.Rol rolDto = new ec.gob.funcionjudicial.dto.Rol();
+    rolDto.setCodigo(this.id);
+    rolDto.setNombre(this.nombre);
+    if (this.aplicativo != null) {
+      rolDto.setAplicacion(this.aplicativo.getNombre());
+    }
+    return rolDto;
+  }
+
 }

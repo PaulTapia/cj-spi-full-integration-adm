@@ -7,9 +7,20 @@
 package ec.gob.funcionjudicial.mapper;
 
 import ec.gob.funcionjudicial.dto.UsuarioFuncionJudicial;
+import ec.gob.funcionjudicial.enums.TipoUsuario;
+import ec.gob.funcionjudicial.model.Organizacion;
+import ec.gob.funcionjudicial.model.Recurso;
+import ec.gob.funcionjudicial.model.Usuario;
+import ec.gob.funcionjudicial.model.UsuarioExterno;
 import java.util.ArrayList;
 import java.util.List;
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.Query;
 import org.jboss.logging.Logger;
+import org.keycloak.connections.jpa.JpaConnectionProvider;
+import org.keycloak.models.ClientSessionContext;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
@@ -50,16 +61,185 @@ public class ConsejoJudicaturaAdmMapper extends AbstractOIDCProtocolMapper imple
         ConsejoJudicaturaAdmMapper.class);
   }
 
+  private EntityManager getEntityManager(KeycloakSession session) {
+    return session.getProvider(JpaConnectionProvider.class, "adm").getEntityManager();
+  }
+
   @Override
-  protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession) {
-    // 1. Obtener la organización desde las notas de la sesión.
-    String organizacion = userSession.getNote("organizacion");
-    UserModel user = userSession.getUser();
+  protected void setClaim(IDToken token, ProtocolMapperModel mappingModel,
+      UserSessionModel userSession, KeycloakSession keycloakSession,
+      ClientSessionContext clientSessionCtx) {
+    try {
+      String organizacion = userSession.getNote("organizacion");
+      UserModel user = userSession.getUser();
+      String username = user.getUsername();
 
-    logger.info("setClaim: organizacion: " + organizacion);
-    logger.info("setClaim: user: " + user);
+      logger.info("setClaim: organizacion: " + organizacion + ", user: " + username);
 
+      UsuarioFuncionJudicial usuarioFJ = obtenerUsuarioCompleto(username, organizacion, keycloakSession);
 
+      if (usuarioFJ != null) {
+        // Agregar el objeto completo como UsuarioFuncionJudicial
+        token.getOtherClaims().put("UsuarioFuncionJudicial", usuarioFJ);
+        logger.info("Usuario agregado al token: " + username);
+      } else {
+        logger.warn("UsuarioFuncionJudicial es null para: " + username);
+      }
+
+    } catch (Exception e) {
+      logger.error("Error al procesar usuario en token", e);
+    }
+  }
+
+  private UsuarioFuncionJudicial obtenerUsuarioCompleto(String username, String institucion,
+      KeycloakSession session) {
+    try {
+      EntityManager em = getEntityManager(session);
+
+      Usuario usuario = buscarUsuarioPorUsername(em, username);
+      if (usuario == null) {
+        logger.warn("Usuario no encontrado: " + username);
+        return null;
+      }
+
+      Boolean primerIngreso = usuario.getPrimerIngreso();
+      Boolean claveCaducada = usuario.getCaducado();
+
+      return llenarUsuario(username, institucion, primerIngreso, claveCaducada, usuario, em);
+
+    } catch (Exception e) {
+      logger.error("Error al obtener usuario completo", e);
+      return null;
+    }
+  }
+
+  private Usuario buscarUsuarioPorUsername(EntityManager em, String username) {
+    try {
+      String hql = "select u from Usuario u where u.username = :username";
+      Query q = em.createQuery(hql);
+      q.setParameter("username", username);
+      return (Usuario) q.getSingleResult();
+    } catch (NoResultException e) {
+      return null;
+    } catch (Exception e) {
+      logger.error("Error al buscar usuario: " + username, e);
+      return null;
+    }
+  }
+
+  private UsuarioFuncionJudicial llenarUsuario(String username, String institucion,
+      Boolean primerIngreso, Boolean claveCaducada, Usuario usuario, EntityManager em) {
+
+    if (usuario == null) return null;
+
+    try {
+      UsuarioFuncionJudicial user = usuario.toUsuarioFuncionJudicial();
+      user.setIdUsuario(usuario.getId());
+      user.setUsuarioAdicional(institucion);
+
+      List<ec.gob.funcionjudicial.model.Rol> roles = listarRoles(em, usuario, institucion);
+      user.setRoles(new ArrayList<>());
+      List<Long> allowedOpciones = new ArrayList<>();
+
+      for (ec.gob.funcionjudicial.model.Rol rol : roles) {
+        for (Recurso recurso : rol.getRecursos()) {
+          user.getPermisos().add(recurso.toPermiso());
+          if (recurso.getMenu() != null && recurso.getMenu()) {
+            allowedOpciones.add(recurso.getId());
+          }
+        }
+        user.getRoles().add(rol.toIRol());
+      }
+
+      List<Recurso> aplicaciones = listarRecursosPorIds(em, allowedOpciones);
+      if (aplicaciones != null) {
+        for (Recurso aplicacion : aplicaciones) {
+          if ("APP".equals(aplicacion.getTipo())) {
+            user.getOpciones().add(aplicacion.toOpcion(allowedOpciones));
+          }
+        }
+      }
+
+      if (institucion != null && !institucion.isEmpty()) {
+        Organizacion organizacion = obtenerOrganizacionPorAcronimo(em, institucion);
+        if (organizacion != null) {
+          user.setIdOrganizacion(organizacion.getId());
+        }
+      }
+
+      user.setPrimerIngreso(primerIngreso);
+      user.setClaveCaducada(claveCaducada);
+      user.setTipoUsuario(determinarTipoUsuario(usuario));
+
+      return user;
+    } catch (Exception e) {
+      logger.error("Error al llenar usuario", e);
+      return null;
+    }
+  }
+
+  private List<ec.gob.funcionjudicial.model.Rol> listarRoles(EntityManager em, Usuario usuario, String institucion) {
+    try {
+      String hql = "select distinct ur.rol from UsuarioRol ur " +
+          "left join fetch ur.rol.recursos " +
+          "where ur.usuario=:usuario and ur.estado=:estado";
+      if (institucion == null || institucion.isEmpty()) {
+        hql += " and ur.organizacion is null";
+      } else {
+        hql += " and ur.organizacion.acronimo=:institucion";
+      }
+
+      Query q = em.createQuery(hql);
+      q.setParameter("usuario", usuario);
+      q.setParameter("estado", "ACT");
+
+      if (institucion != null && !institucion.isEmpty()) {
+        q.setParameter("institucion", institucion);
+      }
+
+      return q.getResultList();
+    } catch (Exception e) {
+      logger.error("Error al listar roles", e);
+      return new ArrayList<>();
+    }
+  }
+
+  private List<Recurso> listarRecursosPorIds(EntityManager em, List<Long> allowedOpciones) {
+    try {
+      if (allowedOpciones.isEmpty()) {
+        return new ArrayList<>();
+      }
+
+      String hql = "select distinct r from Recurso r where r.id in :allowedOpciones";
+      Query q = em.createQuery(hql);
+      q.setParameter("allowedOpciones", allowedOpciones);
+
+      return q.getResultList();
+    } catch (Exception e) {
+      logger.error("Error al listar recursos", e);
+      return new ArrayList<>();
+    }
+  }
+
+  private Organizacion obtenerOrganizacionPorAcronimo(EntityManager em, String institucion) {
+    try {
+      String hql = "select o from Organizacion o where o.acronimo=:institucion";
+      Query q = em.createQuery(hql);
+      q.setParameter("institucion", institucion);
+      return (Organizacion) q.getSingleResult();
+    } catch (NoResultException e) {
+      return null;
+    } catch (Exception e) {
+      logger.error("Error al buscar organización", e);
+      return null;
+    }
+  }
+
+  private TipoUsuario determinarTipoUsuario(Usuario usuario) {
+    if (usuario instanceof UsuarioExterno) {
+      return TipoUsuario.EXTERNO;
+    }
+    return TipoUsuario.INTERNO;
   }
 
   @Override
@@ -79,7 +259,7 @@ public class ConsejoJudicaturaAdmMapper extends AbstractOIDCProtocolMapper imple
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
-    return List.of();
+    return propiedadesConfiguracion;
   }
 
   @Override

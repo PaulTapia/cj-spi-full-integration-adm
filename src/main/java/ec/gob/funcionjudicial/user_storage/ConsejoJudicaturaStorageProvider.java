@@ -19,6 +19,7 @@ import javax.persistence.EntityTransaction;
 import javax.persistence.TypedQuery;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.connections.jpa.JpaConnectionProvider;
@@ -49,6 +50,7 @@ import org.keycloak.storage.user.UserQueryProvider;
  * @version 1.0.0 $
  * @since 20/6/2025
  */
+@Slf4j
 public class ConsejoJudicaturaStorageProvider implements
     UserStorageProvider,
     UserLookupProvider,
@@ -66,26 +68,9 @@ public class ConsejoJudicaturaStorageProvider implements
 
   private final Map<String, UserModel> userCache = new ConcurrentHashMap<>();
 
-  /*private EntityManager getEntityManager() {
-    return EntityManagerProducer.createEntityManager();
-  }*/
-
   private EntityManager getEntityManager() {
     return session.getProvider(JpaConnectionProvider.class, "adm").getEntityManager();
   }
-
-  /*private Connection getConnection() {
-    try {
-      String url = "jdbc:sqlserver://10.1.27.24:1438;databaseName=PORTAL_APLICATIVOS_CJ;instanceName=DESA02;encrypt=false;trustServerCertificate=false;loginTimeout=30";
-      return DriverManager.getConnection(url, "USR_ADM_DES_ALL", "uadacjt2012");
-    } catch (Exception e) {
-      logger.error("Error creating connection", e);
-      return null;
-    }
-  }*/
-
-
-
 
   @Override
   public boolean supportsCredentialType(String s) {
@@ -98,6 +83,7 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   @Override
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public boolean isValid(RealmModel realmModel, UserModel userModel,
       CredentialInput credentialInput) {
     if (!supportsCredentialType(credentialInput.getType()) || !(credentialInput instanceof UserCredentialModel)) {
@@ -113,17 +99,13 @@ public class ConsejoJudicaturaStorageProvider implements
 
       if (acronimo != null && !acronimo.isEmpty()) {
         TypedQuery<Usuario> query = getEntityManager().createQuery(
-            "SELECT DISTINCT u FROM Usuario u "
-                + "JOIN u.usuarioRoles ur "
-                + "JOIN ur.organizacion o "
-                + "WHERE u.username = :username AND o.acronimo = :acronimo "
-                + "AND u.estado = 'ACT' AND u.tipo = 'EXT' AND ur.estado = 'ACT'", Usuario.class);
+            "SELECT u FROM UsuarioExterno u JOIN u.usuarioRoles ur JOIN ur.organizacion o WHERE u.username = :username AND o.acronimo = :acronimo AND u.estado = 'ACT' AND ur.estado = 'ACT'", Usuario.class);
         query.setParameter("username", username);
         query.setParameter("acronimo", acronimo);
         usuario = query.getResultStream().findFirst().orElse(null);
       } else {
         TypedQuery<Usuario> query = getEntityManager().createQuery(
-            "SELECT u FROM Usuario u WHERE u.username = :username AND u.estado = 'ACT' AND u.tipo = 'EXT'",
+            "SELECT u FROM UsuarioExterno u WHERE u.username = :username AND u.estado = 'ACT'",
             Usuario.class);
         query.setParameter("username", username);
         usuario = query.getResultStream().findFirst().orElse(null);
@@ -232,6 +214,7 @@ public class ConsejoJudicaturaStorageProvider implements
     UserModel user = getUserByUsername(externalId, realmModel);
     logger.info("User found: " + (user != null));
 
+
     return user;
   }
 
@@ -239,7 +222,7 @@ public class ConsejoJudicaturaStorageProvider implements
   public UserModel getUserByUsername(String s, RealmModel realmModel) {
     try {
       TypedQuery<Usuario> query = getEntityManager().createQuery(
-          "SELECT u FROM Usuario u WHERE u.username = :username AND u.estado = 'ACT' AND u.tipo = 'EXT'",
+          "SELECT u FROM UsuarioExterno u WHERE u.username = :username AND u.estado = 'ACT'",
           Usuario.class);
       query.setParameter("username", s);
       Usuario usuario = query.getResultStream().findFirst().orElse(null);
@@ -254,7 +237,7 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   // Método específico para validar usuario con organización
-  @Transactional
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public UserModel getUserByUsernameAndOrganization(RealmModel realm, String username, String acronimo) {
     logger.debugf("getUserByUsernameAndOrganization called with username: %s, organization: %s",
         username, acronimo);
@@ -262,11 +245,7 @@ public class ConsejoJudicaturaStorageProvider implements
     EntityManager em = getEntityManager();
     try {
       TypedQuery<Usuario> query = em.createQuery(
-          "SELECT DISTINCT u FROM Usuario u " +
-              "JOIN u.usuarioRoles ur " +
-              "JOIN ur.organizacion o " +
-              "WHERE u.username = :username AND o.acronimo = :acronimo " +
-              "AND u.estado = 'ACT' AND u.tipo = 'EXT' AND ur.estado = 'ACT'", Usuario.class);
+          "SELECT DISTINCT u FROM UsuarioExterno u JOIN u.usuarioRoles ur JOIN ur.organizacion o WHERE u.username = :username AND o.acronimo = :acronimo AND u.estado = 'ACT' AND ur.estado = 'ACT'", Usuario.class);
 
       query.setParameter("username", username);
       query.setParameter("acronimo", acronimo);
@@ -295,15 +274,14 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   @Override
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public UserModel getUserByEmail(String email, RealmModel realm) {
     logger.debugf("getUserByEmail called with email: %s", email);
 
     EntityManager em = getEntityManager();
     try {
       TypedQuery<Usuario> query = em.createQuery(
-          "SELECT u FROM Usuario u " +
-              "JOIN u.persona p " +
-              "WHERE p.email = :email AND u.estado = 'ACT' AND u.tipo = 'EXT'", Usuario.class);
+          "SELECT u FROM UsuarioExterno u JOIN u.persona p WHERE p.email = :email AND u.estado = 'ACT'", Usuario.class);
 
       query.setParameter("email", email);
       Usuario usuario = query.getResultStream().findFirst().orElse(null);
@@ -328,6 +306,7 @@ public class ConsejoJudicaturaStorageProvider implements
 
   // Implementar métodos de búsqueda
   @Override
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public Stream<UserModel> searchForUserStream(RealmModel realm, String search, Integer firstResult, Integer maxResults) {
     try {
       TypedQuery<Usuario> query = getEntityManager().createQuery(
@@ -421,10 +400,11 @@ public class ConsejoJudicaturaStorageProvider implements
   }
 
   @Override
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public int getUsersCount(RealmModel realm) {
     try {
       TypedQuery<Long> query = getEntityManager().createQuery(
-          "SELECT COUNT(u) FROM Usuario u WHERE u.estado = 'ACT' AND u.tipo = 'EXT'", Long.class);
+          "SELECT COUNT(u) FROM UsuarioExterno u WHERE u.estado = 'ACT'", Long.class);
       return query.getSingleResult().intValue();
     } catch (Exception e) {
       logger.error("Error counting users", e);
