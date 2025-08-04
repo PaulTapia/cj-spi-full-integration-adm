@@ -69,7 +69,7 @@ public class ConsejoJudicaturaAuthenticatorFactory implements AuthenticatorFacto
   public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
     return new AuthenticationExecutionModel.Requirement[]{
         AuthenticationExecutionModel.Requirement.REQUIRED,
-        //AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+        AuthenticationExecutionModel.Requirement.ALTERNATIVE,
         AuthenticationExecutionModel.Requirement.DISABLED
     };
   }
